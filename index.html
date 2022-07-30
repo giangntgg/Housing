@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="https://d3js.org/d3.v4.js"></script>
+
+<h1> Which area is the most expensive for HDB flats?</h1>
+<p> Although HDB flats are social housing projects, one of the first factor of flat resale price is the location of the flat. </p>
+<div id="my_dataviz"></div>
+
+<p> Answer this question to go to the next page:  Which area is the least expensive to own a flat?</p>
+<form action="Page3.html">
+    <input type="text" id="question1" oninput="check()">
+    <br><br>
+    <input type="submit" id="submit" disabled="disabled" value="Next Page">
+</form>
+<br><br>
+<button onclick="displayanswer()">Show answer</button>
+<div id="showme" style="display:none">WOODLANDS</div>
+
+<style>
+    .toolTip {
+      position: absolute;
+      display: none;
+      min-width: 80px;
+      height: auto;
+      background: none repeat scroll 0 0 #ffffff;
+      border: 1px solid #6F257F;
+      padding: 14px;
+      text-align: center;
+    }
+</style>
+
+<script>
+    function check(){
+        var correctAns = 'WOODLANDS';
+        var input = document.getElementById('question1').value;
+        console.log(input)
+        var btn = document.getElementById('submit');
+
+        if(input.toUpperCase() == correctAns){
+            btn.disabled = false; 
+        } 
+    }
+
+    function displayanswer() {
+        var answer = document.getElementById('showme');
+        answer.style.display = 'inline-block';
+    }
+        
+    var margin = {top: 10, right: 300, bottom: 100, left: 100},
+        width = 800 - margin.left - margin.right,
+        height = 500 - margin.top - margin.bottom;
+    
+    var svg = d3.select("#my_dataviz")
+        .append("svg")
+            .attr("width", width + margin.left + margin.right)
+            .attr("height", height + margin.top + margin.bottom)
+        .append("g")
+            .attr("transform",
+                  "translate(" + margin.left + "," + margin.top + ")");
+
+    
+    var tooltip = d3.select("body").append("div").attr("class", "toolTip");
+
+    var x = d3.scaleBand().rangeRound([0, width]).padding(0.1),
+        y = d3.scaleLinear().rangeRound([height, 0]);
+    
+    var colours = d3.scaleOrdinal()
+        .range(["#6F257F", "#CA0D59"]);
+
+    d3.csv("https://raw.githubusercontent.com/giangntgg/Housing/main/VIZ%20-%20mapchart.csv", function(error, data) {
+        if (error) throw error;
+
+        x.domain(data.map(function(d) { return d['Town']; }));
+        y.domain([0, d3.max(data, function(d) { return d['Avg. Price per sqm']; })]);
+
+        svg.append("g")
+            .attr("class", "axis axis--x")
+            .attr("transform", "translate(0," + height + ")")
+            .call(d3.axisBottom(x))
+            .selectAll("text")
+            .attr("y", 0)
+            .attr("x", 9)
+            .attr("dy", ".10em")
+            .attr("transform", "rotate(90)")
+            .style("text-anchor", "start");
+
+        svg.append("g")
+            .attr("class", "axis axis--y")
+            .call(d3.axisLeft(y).ticks(10).tickFormat(function(d) { return "SGD" + d3.format(".1f")(d); }).tickSizeInner([-width]))
+            .append("text")
+            .attr("transform", "rotate(-90)")
+            .attr("y", 10)
+            .attr("dy", "0.50em")
+            .attr("text-anchor", "end")
+            .attr("fill", "#5D6971")
+            .text("Average Price Per SQM - (SGD)");
+
+        svg.selectAll(".bar")
+            .data(data)
+        .enter().append("rect")
+            .attr("x", function(d) { return x(d['Town']); })
+            .attr("y", function(d) { return y(d['Avg. Price per sqm']); })
+            .attr("width", x.bandwidth())
+            .attr("height", function(d) { return height - y(d['Avg. Price per sqm']); })
+            .attr("fill", function(d) { return colours(d['Town']); })
+            .on("mousemove", function(d){
+                tooltip
+                .style("left", d3.event.pageX - 50 + "px")
+                .style("top", d3.event.pageY - 70 + "px")
+                .style("display", "inline-block")
+                .html((d['Town']) + "<br>" + "SGD " + (d3.format(".1f")(d['Avg. Price per sqm'])));
+            })
+            .on("mouseout", function(d){ 
+                tooltip.style("display", "none");
+                d3.select(this).transition()
+                .duration('50')
+                .attr('opacity', '1');
+            })
+            .on('mouseover', function (d, i) {
+                d3.select(this).transition()
+               .duration('50')
+               .attr('opacity', '.85');})
+        });
+</script>

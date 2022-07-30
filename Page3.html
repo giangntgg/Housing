@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="https://d3js.org/d3.v4.js"></script>
+
+<h1> Trend of Price of Flat Type </h1>
+<p> Let's explore how different flat types have different price trends along the year. </p>
+<div id="my_dataviz"></div>
+<div id='tooltip' style='position:absolute;background-color:beige;padding:5px;opacity:0.9;'></div>
+
+<p> Answer this question to go to the next page: Which flat type experiences the highest jump in price from Mar 2020 to Mar 2022?</p>
+<form action="Page1.html">
+    <input type="text" id="question1" oninput="check()">
+    <br><br>
+    <input type="submit" id="submit" disabled="disabled" value="Next Page">
+</form>
+<br><br>
+<button onclick="displayanswer()">Show answer</button>
+<div id="showme" style="display:none">1 ROOM</div>
+<br><br>
+<a href='index.html'><button>Back to previous page</button></a>
+
+<script>
+    function check(){
+    var correctAns = '1 ROOM';
+    var input = document.getElementById('question1').value;
+    console.log(input)
+    var btn = document.getElementById('submit');
+
+    if(input.toUpperCase() == correctAns){
+        btn.disabled = false;
+    } 
+    };
+
+    function displayanswer() {
+        var answer = document.getElementById('showme');
+        answer.style.display = 'inline-block';
+    };
+  
+    var margin = {top: 10, right: 300, bottom: 100, left: 100},
+        width = 800 - margin.left - margin.right,
+        height = 500 - margin.top - margin.bottom;
+
+    var svg = d3.select("#my_dataviz")
+      .append("svg")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom)
+      .append("g")
+        .attr("transform",
+              "translate(" + margin.left + "," + margin.top + ")");
+    
+    var formatTime = d3.timeFormat("%Y%m");
+    var parseTime = d3.timeParse("%Y%m");
+    var x = d3.scaleTime().rangeRound([0, width]);     
+    var y = d3.scaleLinear().rangeRound([height, 0]);
+
+    d3.csv("https://raw.githubusercontent.com/giangntgg/Housing/main/VIZ%20-%20Flat%20Types.csv",function(data) {
+        y.domain([0, d3.max(data, function(d) { return d['Avg. Price per sqm']; })]);
+        
+        x.domain(d3.extent(data, function(d) { 
+                return new Date(parseTime(d['Quarter of Month'])); 
+        }));
+
+        // Add the axes and a title
+        svg.append("g")
+            .attr("class", "axis axis--x")
+            .attr("transform", "translate(0," + height + ")")
+            .call(d3.axisBottom(x))
+            .selectAll("text")
+            .attr("y", 0)
+            .attr("x", 9)
+            .attr("dy", ".10em")
+            .attr("transform", "rotate(90)")
+            .style("text-anchor", "start");
+
+        svg.append("g")
+            .attr("class", "axis axis--y")
+            .call(d3.axisLeft(y).ticks(10).tickFormat(function(d) { return "SGD" + d3.format(".1f")(d); }).tickSizeInner([-width]))
+            .append("text")
+            .attr("transform", "rotate(-90)")
+            .attr("y", 10)
+            .attr("dy", "0.50em")
+            .attr("text-anchor", "end")
+            .attr("fill", "#5D6971")
+            .text("Average Price Per SQM - (SGD)");
+
+        var sumstat = d3.nest() // nest function allows to group the calculation per level of a factor
+            .key(function(d) { return d['Flat Type'];})
+            .entries(data);
+        
+        // color palette
+        var res = sumstat.map(function(d){ return d.key }); // list of group names
+        var color = d3.scaleOrdinal()
+                .domain(res)
+                .range(['#e41a1c','#377eb8','#4daf4a','#984ea3','#ff7f00','#a65628','#f781bf','#999999']);
+    
+        // Draw the line
+        svg.selectAll(".line")
+                .data(sumstat)
+                .enter()
+                .append("path")
+                    .attr("fill", "none")
+                    .attr("stroke", function(d){ return color(d.key); })
+                    .attr("stroke-width", 1.5)
+                    .attr("d", function(d){
+                    return d3.line()
+                        .x(function(d) { return x(new Date(parseTime(d['Quarter of Month']))); })
+                        .y(function(d) { return y(+d['Avg. Price per sqm']); })
+                        (d.values)
+            })
+            
+            
+
+        svg.selectAll()
+        .data(sumstat).enter()
+        .append('text')
+        .html(d => d.key)
+        .attr('fill', function(d){ return color(d.key) })
+        .attr('alignment-baseline', 'middle')
+        .attr('x', width)
+        .attr('dx', '.5em')
+        .attr('y', function(d) { return y(d.values[d.values.length - 1]['Avg. Price per sqm']); })
+        .style("font", "10px times");
+
+
+        const tooltip = d3.select('#tooltip');
+        const tooltipLine = svg.append('line');
+
+        tipBox = svg.append('rect')
+        .attr('width', width)
+        .attr('height', height)
+        .attr('opacity', 0)
+        .on('mousemove', drawTooltip)
+        .on('mouseout', removeTooltip);
+
+        function removeTooltip() {
+                if (tooltip) tooltip.style('display', 'none');
+                if (tooltipLine) tooltipLine.attr('stroke', 'none');
+        };
+
+        function drawTooltip() {
+            const year = x.invert(d3.mouse(tipBox.node())[0]);
+    
+            tooltipLine.attr('stroke', 'black')
+                .attr('x1', x(year))
+                .attr('x2', x(year))
+                .attr('y1', 0)
+                .attr('y2', height);
+            
+            tooltip.html(d3.timeFormat("%Y %b")(year))
+                .style('display', 'block')
+                .style('left', d3.event.pageX + 20 + "px")
+                .style('top', d3.event.pageY - 20 + "px")
+                .selectAll()
+                .data(sumstat).enter()
+                .append('div')
+                .style('color', d => color(d.key))
+                .html(d => d.key + ': SGD' + d3.format(".1f")(d.values.find(h => h['Quarter of Month'] == formatTime(year))['Avg. Price per sqm']));
+        }
+    })
+</script>

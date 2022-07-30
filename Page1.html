@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+
+<script src="https://d3js.org/d3.v4.js"></script>
+
+<h1> Exploring the average price trend of HDB flats against their remaining lease</h1>
+<p> HDB flats have a limited 99 years of ownership. This is to ensure the constant supply of flats for new buyers of the new generations and prevent hoarding of properties. This policy greatly helps the price regulation of the Singapore real estate market. However, that also means the price of a HDB flat would be directly proportional to the number of lease years left.</p>
+<div id="my_dataviz"></div>
+
+<p> Answer this question to complete the exploration! If I want a flat with the longest least years left at the lowest cost per square meter, which remaining least year should I look for?</p>
+<form>
+    <input type="text" id="question1" oninput="check()">
+</form>
+<br>
+<div id="final" style="display:none">Congrats! You have learned all about HDB price in Singapore.</div>
+<br><br>
+<button onclick="displayanswer()">Show answer</button>
+<div id="showme" style="display:none">Any years between 89 to 95 years (e.g., 92)</div>
+<br><br>
+<a href="Page3.html"><button>Back to previous page</button></a>
+
+<script>
+    function check(){
+        var input = document.getElementById('question1').value;
+        console.log(input)
+        var btn = document.getElementById('submit');
+
+        if(input >= 89 && input <= 95){
+          var answer = document.getElementById('final');
+          answer.style.display = 'inline-block'; 
+        } 
+    }
+
+    function displayanswer() {
+        var answer = document.getElementById('showme');
+        answer.style.display = 'inline-block';
+    }
+
+    var margin = {top: 10, right: 300, bottom: 100, left: 100},
+        width = 800 - margin.left - margin.right,
+        height = 500 - margin.top - margin.bottom;
+    
+    var svg = d3.select("#my_dataviz")
+      .append("svg")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom)
+      .append("g")
+        .attr("transform",
+              "translate(" + margin.left + "," + margin.top + ")");
+    
+    d3.csv("https://raw.githubusercontent.com/giangntgg/Housing/main/VIZ%20-%20Lease%20Year.csv",function(data) {
+    
+      var x = d3.scaleLinear()
+        .domain([40,100])
+        .range([ 0, width ]);
+      svg.append("g")
+        .attr("transform", "translate(0," + height + ")")
+        .call(d3.axisBottom(x));
+    
+      var y = d3.scaleLinear()
+        .domain([0, 10000])
+        .range([ height, 0 ]);
+      svg.append("g")
+        .call(d3.axisLeft(y));
+    
+      var bisect = d3.bisector(function(d) { return d['Remaining Lease Years']; }).left;
+    
+      var focus = svg
+        .append('g')
+        .append('circle')
+          .style("fill", "none")
+          .attr("stroke", "black")
+          .attr('r', 8.5)
+          .style("opacity", 0)
+    
+      var focusText = svg
+        .append('g')
+        .append('text')
+          .style("opacity", 0)
+          .attr("text-anchor", "left")
+          .attr("alignment-baseline", "middle")
+    
+      svg
+        .append("path")
+        .datum(data)
+        .attr("fill", "none")
+        .attr("stroke", "steelblue")
+        .attr("stroke-width", 1.5)
+        .attr("d", d3.line()
+          .x(function(d) { return x(d['Remaining Lease Years']) })
+          .y(function(d) { return y(d['Avg Price Per SQM']) })
+          )
+    
+      svg
+        .append('rect')
+        .style("fill", "none")
+        .style("pointer-events", "all")
+        .attr('width', width)
+        .attr('height', height)
+        .on('mouseover', mouseover)
+        .on('mousemove', mousemove)
+        .on('mouseout', mouseout);
+    
+    
+      function mouseover() {
+        focus.style("opacity", 1)
+        focusText.style("opacity",1)
+      }
+    
+      function mousemove() {
+        var x0 = x.invert(d3.mouse(this)[0]);
+        var i = bisect(data, x0, 1);
+        selectedData = data[i]
+        focus
+          .attr("cx", x(selectedData['Remaining Lease Years']))
+          .attr("cy", y(selectedData['Avg Price Per SQM']))
+        focusText
+          .html("Left with " + selectedData['Remaining Lease Years'] + " years at $" + d3.format(".1f")(selectedData['Avg Price Per SQM']) + " per sqm")
+          .attr("x", x(selectedData['Remaining Lease Years'])+15)
+          .attr("y", y(selectedData['Avg Price Per SQM']))
+        }
+      function mouseout() {
+        focus.style("opacity", 0)
+        focusText.style("opacity", 0)
+      }
+    
+    })
+    
+    </script>
